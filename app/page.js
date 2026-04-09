@@ -96,6 +96,8 @@ const handleDeleteFinal = async () => {
     }
   };
 
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  
   // --- 로그인 로직 ---
   const handleLogin = (inputPattern) => {
     if (inputPattern.join(",") === AUTH_CONFIG.MASTER_PATTERN) {
@@ -387,19 +389,43 @@ const handleDeleteFinal = async () => {
             <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl text-center animate-in zoom-in duration-200">
               <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center text-4xl mx-auto mb-6">🗑️</div>
               <h3 className="text-2xl font-black text-slate-900 mb-2">정말 삭제할까요?</h3>
-              <p className="text-slate-500 font-bold mb-8">
+              <p className="text-slate-500 font-bold mb-4">
                 <span className="text-red-500">[{deletingItem.title}]</span> 레시피가<br/>영구히 삭제됩니다.
               </p>
+
+              {/* 🛡️ 삭제 방어 기재: 입력창 추가 */}
+              <div className="mb-6">
+                <p className="text-xs text-slate-400 mb-2 font-bold">승인을 위해 아래에 "삭제"를 입력하세요.</p>
+                <input 
+                  type="text"
+                  placeholder="삭제"
+                  className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-center font-black text-red-500 focus:ring-2 focus:ring-red-500 outline-none"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <button 
-                  onClick={() => setDeletingItem(null)} 
+                  onClick={() => {
+                    setDeletingItem(null);
+                    setDeleteConfirmText(""); // 닫을 때 텍스트 초기화
+                  }} 
                   className="p-4 bg-slate-100 text-slate-500 rounded-2xl font-black"
                 >
                   취소
                 </button>
                 <button 
-                  onClick={handleDeleteFinal} 
-                  className="p-4 bg-red-600 text-white rounded-2xl font-black shadow-lg"
+                  onClick={() => {
+                    handleDeleteFinal();
+                    setDeleteConfirmText(""); // 삭제 후 초기화
+                  }} 
+                  disabled={deleteConfirmText !== "삭제"} // "삭제"가 아니면 비활성화
+                  className={`p-4 rounded-2xl font-black shadow-lg transition-all ${
+                    deleteConfirmText === "삭제" 
+                    ? "bg-red-600 text-white" 
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                  }`}
                 >
                   삭제
                 </button>
