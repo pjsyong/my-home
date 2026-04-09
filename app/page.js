@@ -10,6 +10,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+
 export default function HomePage() {
   // --- 상태 관리 ---
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -22,10 +23,26 @@ export default function HomePage() {
   const [editingItem, setEditingItem] = useState(null);    // 편집 모달 제어
   const [isConfirmOpen, setIsConfirmOpen] = useState(false); // 커스텀 확인창 제어
 
+  const [loginMessage, setLoginMessage] = useState("Master Pattern Required");
+  const [messageColor, setMessageColor] = useState("text-slate-400");
+
+  const [resetKey, setResetKey] = useState(0);
+
   // --- 로그인 로직 ---
   const handleLogin = (inputPattern) => {
     if (inputPattern.join(",") === AUTH_CONFIG.MASTER_PATTERN) {
+      setLoginMessage("환영합니다!");
+      setMessageColor("text-orange-500");
       setTimeout(() => setIsLoggedIn(true), 500);
+    } else {
+      // 패턴이 틀렸을 때
+      setLoginMessage("패턴이 틀렸습니다. 다시 시도해주세요.");
+      setMessageColor("text-red-500");
+      
+      // 🚀 resetKey를 변경하여 PatternLock을 강제로 새로고침(초기화)
+      setTimeout(() => {
+        setResetKey(prev => prev + 1);
+      }, 300); // 0.3초 정도 패턴을 보여준 뒤 지워지게 설정
     }
   };
 
@@ -51,7 +68,11 @@ export default function HomePage() {
   };
 
   // --- 수정 로직 (2단계: 실제 DB 반영) ---
+  // --- 수정 로직 (최종 실행 단계) ---
   const handleUpdateFinal = async () => {
+    // 1. 현재 스크롤 위치 저장 (이게 핵심!)
+    const currentScrollY = window.scrollY;
+
     const { id, category, title, component, feedback } = editingItem;
 
     const { error } = await supabase
@@ -62,10 +83,41 @@ export default function HomePage() {
     if (error) {
       alert("저장에 실패했습니다: " + error.message);
     } else {
-      setIsConfirmOpen(false); // 확인창 닫기
-      setEditingItem(null);    // 편집창 닫기
-      fetchRecipes();          // 목록 새로고침
+      setIsConfirmOpen(false); 
+      setEditingItem(null);    
+      
+      // 2. 데이터를 새로 불러온 직후에 스크롤 위치 복원
+      await fetchRecipes(); 
+      
+      // 데이터가 렌더링될 시간을 아주 잠깐 주기 위해 setTimeout 사용
+      setTimeout(() => {
+        window.scrollTo({
+          top: currentScrollY,
+          behavior: 'instant' // 즉시 이동 (스르륵 이동하면 오히려 어지러울 수 있음)
+        });
+      }, 0);
     }
+  };
+
+  // 검색어 강조 함수
+  const highlightText = (text, query) => {
+    if (!query.trim()) return text;
+    
+    // 띄어쓰기 무관하게 검색하기 위해 정규식 생성
+    const cleanQuery = query.replace(/\s+/g, "");
+    const regex = new RegExp(`(${cleanQuery.split("").join("\\s*")})`, "gi");
+    
+    const parts = text.split(regex);
+    
+    return parts.map((part, i) => 
+      regex.test(part) ? (
+        <span key={i} className="bg-orange-100 text-orange-700 rounded-sm px-0.5">
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    );
   };
 
   // --- 카테고리 추출 및 검색 필터링 ---
@@ -90,7 +142,7 @@ export default function HomePage() {
         {/* 상단 검색 및 카테고리바 (고정) */}
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200 p-4">
           <div className="max-w-xl mx-auto space-y-4">
-            <h1 className="text-xl font-black text-slate-800 text-center">우리집 레시피 🏠</h1>
+            <h1 className="text-xl font-black text-slate-800 text-center">미경이의 백과사전 🏠</h1>
             <input
               type="text"
               placeholder="메뉴 이름 검색 (띄어쓰기 무관)"
@@ -131,16 +183,32 @@ export default function HomePage() {
                   {item.category || "미분류"}
                 </span>
               </div>
-              <h2 className="text-2xl font-black text-slate-800 mb-4 pr-10">{item.title}</h2>
-              <div className="bg-slate-50 p-4 rounded-2xl text-slate-700 font-medium whitespace-pre-wrap leading-relaxed">
-                {item.component}
+              <h2 className="text-2xl font-black text-slate-800 mb-4 pr-12">
+                {highlightText(item.title, searchQuery)}
+              </h2>
+              {/* 재료 및 설명 부분 */}
+              <div className="bg-slate-50 p-4 rounded-2xl text-slate-700 font-medium leading-relaxed">
+                {item.component?.split("-").map((line, index) => (
+                  <div key={index}>
+                    {/* 첫 줄이 아니고 내용이 있다면 앞에 '-'를 붙여서 줄바꿈 */}
+                    {index > 0 && line.trim() ? `- ${line.trim()}` : line}
+                  </div>
+                ))}
               </div>
+
+              {/* 조리 팁 부분 */}
               {item.feedback && (
                 <div className="mt-4 flex gap-2 items-start bg-blue-50 p-3 rounded-xl border border-blue-100">
                   <span className="text-blue-500">💡</span>
-                  <p className="text-blue-700 text-sm font-bold leading-snug">{item.feedback}</p>
+                  <div className="text-blue-700 text-sm font-bold leading-snug">
+                    {item.feedback.split("-").map((line, index) => (
+                      <div key={index}>
+                        {index > 0 && line.trim() ? `- ${line.trim()}` : line}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              )}
+              )}  
             </div>
           ))}
         </div>
@@ -156,11 +224,18 @@ export default function HomePage() {
               <form onSubmit={requestUpdate} className="space-y-4 overflow-y-auto max-h-[65vh] pr-2 no-scrollbar">
                 <div>
                   <label className="text-xs font-bold text-slate-400 ml-1">카테고리</label>
-                  <input 
-                    className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-orange-500 text-base text-slate-900 font-normal"
+                  <select 
+                    className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-orange-500 text-base text-slate-900 font-normal appearance-none cursor-pointer"
                     value={editingItem.category || ""}
                     onChange={(e) => setEditingItem({...editingItem, category: e.target.value})}
-                  />
+                  >
+                    <option value="" disabled>카테고리 선택</option>
+                    <option value="반찬">반찬</option>
+                    <option value="주찬">주찬</option>
+                    <option value="밥국">밥국</option>
+                    <option value="소스오븐">소스오븐</option>
+                    <option value="미경">미경</option>
+                  </select>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-400 ml-1">음식 이름</label>
@@ -214,12 +289,48 @@ export default function HomePage() {
     );
   }
 
-  // --- 로그인 화면 (패턴 잠금) ---
+  
+  // --- 로그인 화면 (패턴 잠금 부분) ---
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-      <h1 className="text-3xl font-black text-slate-800 mb-2 italic">RECIPE ARCHIVE</h1>
-      <p className="text-slate-400 mb-10 font-bold text-sm uppercase tracking-widest">Master Pattern Required</p>
-      <PatternLock onComplete={handleLogin} />
+      
+      {/* 🚀 1. 메인 타이틀: 아이콘 + 텍스트 */}
+      <h1 className="text-3xl font-black text-slate-800 mb-2 italic flex items-center justify-center gap-3">
+        {/* 요리사 모자와 콧수염 아이콘 */}
+        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-orange-500">
+          <path d="M6 18h12a2 2 0 0 1 2 2v1H4v-1a2 2 0 0 1 2-2Z"/>
+          <path d="M12 2a4 4 0 0 0-4 4c0 1.25.43 2.4 1.15 3.3.3.36.46.8.46 1.25l-.13 3.9c-.06.7 1.5 1.55 2.52 1.55s2.58-.85 2.52-1.55l-.13-3.9a2 2 0 0 1 .46-1.25A3.99 3.99 0 0 0 16 6a4 4 0 0 0-4-4Z"/>
+          <path d="M11 11h2"/>
+        </svg>
+        미경이의 백과사전
+      </h1>
+      
+      {/* 2. 안내 메시지: 상태에 따라 색상/문구 변경 */}
+      <p className={`mb-12 font-bold text-sm uppercase tracking-widest transition-colors duration-300 ${messageColor}`}>
+        {loginMessage}
+      </p>
+      
+      {/* 🚀 3. 패턴 입력 구역: 아이콘 + 입력창 */}
+      <div className="bg-white p-8 rounded-3xl shadow-lg border border-slate-100 flex flex-col items-center gap-6">
+        {/* 잠금/보안 아이콘 */}
+        <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 border-2 border-orange-100">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+
+        {/* 패턴 잠금 컴포넌트 */}
+        <PatternLock 
+          key={resetKey} 
+          onComplete={handleLogin} 
+          // 라이브러리에 따라 색상 옵션이 있다면 주황색으로 맞추면 더 예쁩니다.
+          // pointColor="#f97316" 
+        />
+        
+        <p className="text-xs text-slate-400 mt-2">등록된 패턴을 그려주세요.</p>
+      </div>
+
     </main>
   );
 }

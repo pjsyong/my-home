@@ -94,6 +94,7 @@ export default function PatternLock({ onComplete }) {
     }
   };
 
+  
   // 전역 마우스업 이벤트 감지
   useEffect(() => {
     window.addEventListener("mouseup", handleEnd);
