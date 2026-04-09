@@ -28,6 +28,49 @@ export default function HomePage() {
 
   const [resetKey, setResetKey] = useState(0);
 
+  
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+
+  // 토스트 실행 함수
+  const triggerToast = (msg) => {
+    setToastMessage(msg);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 1500); // 1.5초 후 자동으로 닫힘
+  };
+
+  // --- 상태 관리 섹션에 추가 ---
+  const [isAdding, setIsAdding] = useState(false); // 추가 모달 제어
+  const [newRecipe, setNewRecipe] = useState({
+    category: "반찬",
+    title: "",
+    component: "",
+    feedback: ""
+  });
+
+  // --- 추가 로직 (DB 저장) ---
+  const handleAddFinal = async (e) => {
+    e.preventDefault();
+    
+    if (!newRecipe.title.trim()) {
+      triggerToast("음식 이름을 입력해주세요! ⚠️");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("food")
+      .insert([newRecipe]);
+
+    if (error) {
+      triggerToast("저장에 실패했습니다. ❌");
+    } else {
+      setIsAdding(false);
+      setNewRecipe({ category: "반찬", title: "", component: "", feedback: "" });
+      await fetchRecipes();
+      triggerToast("레시피가 등록되었습니다! ✨"); // 성공 메시지
+    }
+  };
+
   // --- 로그인 로직 ---
   const handleLogin = (inputPattern) => {
     if (inputPattern.join(",") === AUTH_CONFIG.MASTER_PATTERN) {
@@ -64,15 +107,14 @@ export default function HomePage() {
   // --- 수정 로직 (1단계: 확인창 띄우기) ---
   const requestUpdate = (e) => {
     e.preventDefault();
-    setIsConfirmOpen(true);
+    // 이제 팝업을 띄우지 않고 바로 최종 업데이트 함수를 실행합니다.
+    handleUpdateFinal();
   };
 
   // --- 수정 로직 (2단계: 실제 DB 반영) ---
   // --- 수정 로직 (최종 실행 단계) ---
   const handleUpdateFinal = async () => {
-    // 1. 현재 스크롤 위치 저장 (이게 핵심!)
     const currentScrollY = window.scrollY;
-
     const { id, category, title, component, feedback } = editingItem;
 
     const { error } = await supabase
@@ -81,21 +123,19 @@ export default function HomePage() {
       .eq("id", id);
 
     if (error) {
-      alert("저장에 실패했습니다: " + error.message);
+      triggerToast("저장에 실패했습니다. ❌");
     } else {
-      setIsConfirmOpen(false); 
+      // setIsConfirmOpen(false); // 이제 필요 없으므로 제거하거나 주석 처리
       setEditingItem(null);    
       
-      // 2. 데이터를 새로 불러온 직후에 스크롤 위치 복원
       await fetchRecipes(); 
       
-      // 데이터가 렌더링될 시간을 아주 잠깐 주기 위해 setTimeout 사용
       setTimeout(() => {
-        window.scrollTo({
-          top: currentScrollY,
-          behavior: 'instant' // 즉시 이동 (스르륵 이동하면 오히려 어지러울 수 있음)
-        });
+        window.scrollTo({ top: currentScrollY, behavior: 'instant' });
       }, 0);
+
+      // 수정 완료 토스트 띄우기!
+      triggerToast("레시피가 수정되었습니다! ✅");
     }
   };
 
@@ -139,6 +179,7 @@ export default function HomePage() {
   if (isLoggedIn) {
     return (
       <main className="min-h-screen bg-slate-50 pb-10">
+        
         {/* 상단 검색 및 카테고리바 (고정) */}
         <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200 p-4">
           <div className="max-w-xl mx-auto space-y-4">
@@ -285,6 +326,84 @@ export default function HomePage() {
             </div>
           </div>
         )}
+        {/* 3. 레시피 추가 모달 */}
+        {isAdding && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+            <div className="bg-white w-full max-w-xl rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 shadow-2xl border-t-4 border-green-500 animate-in slide-in-from-bottom duration-300">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-black text-slate-900">새 레시피 추가</h3>
+                <button onClick={() => setIsAdding(false)} className="text-slate-400 text-3xl">✕</button>
+              </div>
+              <form onSubmit={handleAddFinal} className="space-y-4 overflow-y-auto max-h-[65vh] pr-2 no-scrollbar">
+                <div>
+                  <label className="text-xs font-bold text-slate-400 ml-1">카테고리</label>
+                  <select 
+                    className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-green-500 text-base text-slate-900 font-normal appearance-none cursor-pointer"
+                    value={newRecipe.category}
+                    onChange={(e) => setNewRecipe({...newRecipe, category: e.target.value})}
+                  >
+                    <option value="반찬">반찬</option>
+                    <option value="주찬">주찬</option>
+                    <option value="밥국">밥국</option>
+                    <option value="소스오븐">소스오븐</option>
+                    <option value="미경">미경</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400 ml-1">음식 이름</label>
+                  <input 
+                    placeholder="예: 김치찌개"
+                    className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-green-500 text-base text-slate-900 font-normal"
+                    value={newRecipe.title}
+                    onChange={(e) => setNewRecipe({...newRecipe, title: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400 ml-1">재료 및 설명</label>
+                  <textarea 
+                    rows={6}
+                    placeholder="- 돼지고기 200g&#10;- 김치 1/4포기"
+                    className="w-full p-4 bg-slate-50 rounded-2xl border-none focus:ring-2 focus:ring-green-500 text-base text-slate-900 font-normal"
+                    value={newRecipe.component}
+                    onChange={(e) => setNewRecipe({...newRecipe, component: e.target.value})}
+                  />
+                </div>  
+                <div>
+                  <label className="text-xs font-bold text-slate-400 ml-1">조리 팁 (선택)</label>
+                  <textarea 
+                    rows={2}
+                    placeholder="설탕을 반 스푼 넣으면 신맛이 잡혀요."
+                    className="w-full p-4 bg-blue-50/50 rounded-2xl border border-blue-100 focus:ring-2 focus:ring-blue-500 text-base text-blue-800 font-normal"
+                    value={newRecipe.feedback}
+                    onChange={(e) => setNewRecipe({...newRecipe, feedback: e.target.value})}
+                  />
+                </div>
+                <button type="submit" className="w-full p-5 bg-green-600 text-white rounded-3xl font-black text-xl shadow-xl active:scale-95 transition-transform mt-4">
+                  레시피 등록하기
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+        {showToast && (
+          <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 border border-slate-700/50 backdrop-blur-md">
+              <span className="text-orange-400">●</span>
+              <span className="font-bold text-sm">{toastMessage}</span>
+            </div>
+          </div>
+        )}
+
+        {/* 레시피 리스트 하단이나 main 태그 끝부분에 추가 */}
+        <button 
+          onClick={() => setIsAdding(true)}
+          className="fixed bottom-8 right-8 bg-orange-500 hover:bg-orange-600 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all hover:scale-110 z-40 group"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
       </main>
     );
   }
