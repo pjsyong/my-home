@@ -11,6 +11,69 @@ const supabase = createClient(
 );
 
 
+// page.js 상단이나 별도 파일에 추가
+function RecipeItem({ item, searchQuery, highlightText, setEditingItem, setDeletingItem }) {
+  const [isOpen, setIsOpen] = useState(false); // 상세 정보 표시 여부
+  return (
+    <div key={item.id} className="relative bg-white rounded-3xl p-6 shadow-sm border border-slate-100 transition-all">
+      {/* 편집/삭제 버튼 (항상 노출하거나 상단에 배치) */}
+      <div className="absolute top-6 right-6 flex gap-2">
+        <button 
+          onClick={(e) => { e.stopPropagation(); setEditingItem(item); }}
+          className="px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl font-black text-xs hover:bg-orange-100 hover:text-orange-600 transition-colors"
+        >
+          편집
+        </button>
+        <button 
+          onClick={(e) => { e.stopPropagation(); setDeletingItem(item); }}
+          className="px-3 py-1.5 bg-red-50 text-red-400 rounded-xl font-black text-xs hover:bg-red-100 hover:text-red-600 transition-colors"
+        >
+          삭제
+        </button>
+      </div>
+
+      {/* 클릭 가능한 헤더 영역 */}
+      <div className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+        <div className="mb-2">
+          <span className="text-[10px] font-black px-2 py-1 bg-orange-50 text-orange-600 rounded-lg uppercase">
+            {item.category || "미분류"}
+          </span>
+        </div>
+        <h2 className="text-2xl font-black text-slate-800 pr-12">
+          {highlightText(item.title, searchQuery)}
+          <span className="ml-2 text-sm text-slate-400">{isOpen ? "▲" : "▼"}</span>
+        </h2>
+      </div>
+
+      {/* 펼쳐지는 상세 정보 영역 */}
+      {isOpen && (
+        <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="bg-slate-50 p-4 rounded-2xl text-slate-700 font-medium leading-relaxed">
+            {item.component?.split("-").map((line, index) => (
+              <div key={index}>
+                {index > 0 && line.trim() ? `- ${line.trim()}` : line}
+              </div>
+            ))}
+          </div>
+
+          {item.feedback && (
+            <div className="mt-4 flex gap-2 items-start bg-blue-50 p-3 rounded-xl border border-blue-100">
+              <span className="text-blue-500">💡</span>
+              <div className="text-blue-700 text-sm font-bold leading-snug">
+                {item.feedback.split("-").map((line, index) => (
+                  <div key={index}>
+                    {index > 0 && line.trim() ? `- ${line.trim()}` : line}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function HomePage() {
   // --- 상태 관리 ---
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -263,60 +326,20 @@ const handleDeleteFinal = async () => {
           </div>
         </div>
         {/* 레시피 리스트 */}
-        <div className="max-w-xl mx-auto p-4 space-y-4 mt-2">
-          {loading ? (
-            <div className="text-center py-20 text-slate-400 font-bold">로딩 중...</div>
-          ) : filteredRecipes.map((item) => (
-            <div key={item.id} className="relative bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
-              <div className="absolute top-6 right-6 flex gap-2">
-                <button 
-                  onClick={() => setEditingItem(item)}
-                  className="px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl font-black text-xs hover:bg-orange-100 hover:text-orange-600 transition-colors"
-                >
-                  편집
-                </button>
-                <button 
-                  onClick={() => setDeletingItem(item)}
-                  className="px-3 py-1.5 bg-red-50 text-red-400 rounded-xl font-black text-xs hover:bg-red-100 hover:text-red-600 transition-colors"
-                >
-                  삭제
-                </button>
-              </div>
-              <div className="mb-2">
-                <span className="text-[10px] font-black px-2 py-1 bg-orange-50 text-orange-600 rounded-lg uppercase">
-                  {item.category || "미분류"}
-                </span>
-              </div>
-              <h2 className="text-2xl font-black text-slate-800 mb-4 pr-12">
-                {highlightText(item.title, searchQuery)}
-              </h2>
-              {/* 재료 및 설명 부분 */}
-              <div className="bg-slate-50 p-4 rounded-2xl text-slate-700 font-medium leading-relaxed">
-                {item.component?.split("-").map((line, index) => (
-                  <div key={index}>
-                    {/* 첫 줄이 아니고 내용이 있다면 앞에 '-'를 붙여서 줄바꿈 */}
-                    {index > 0 && line.trim() ? `- ${line.trim()}` : line}
-                  </div>
-                ))}
-              </div>
-
-              {/* 조리 팁 부분 */}
-              {item.feedback && (
-                <div className="mt-4 flex gap-2 items-start bg-blue-50 p-3 rounded-xl border border-blue-100">
-                  <span className="text-blue-500">💡</span>
-                  <div className="text-blue-700 text-sm font-bold leading-snug">
-                    {item.feedback.split("-").map((line, index) => (
-                      <div key={index}>
-                        {index > 0 && line.trim() ? `- ${line.trim()}` : line}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}  
-            </div>
-          ))}
-        </div>
-
+       <div className="max-w-xl mx-auto p-4 space-y-4 mt-2">
+        {loading ? (
+          <div className="text-center py-20 text-slate-400 font-bold">로딩 중...</div>
+        ) : filteredRecipes.map((item) => (
+          <RecipeItem 
+            key={item.id}
+            item={item}
+            searchQuery={searchQuery}
+            highlightText={highlightText}
+            setEditingItem={setEditingItem}
+            setDeletingItem={setDeletingItem}
+          />
+        ))}
+      </div>
         {/* 1. 편집 모달 (데이터 수정 입력창) */}
         {editingItem && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
