@@ -13,10 +13,11 @@ const supabase = createClient(
 
 // page.js 상단이나 별도 파일에 추가
 function RecipeItem({ item, searchQuery, highlightText, setEditingItem, setDeletingItem }) {
-  const [isOpen, setIsOpen] = useState(false); // 상세 정보 표시 여부
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <div key={item.id} className="relative bg-white rounded-3xl p-6 shadow-sm border border-slate-100 transition-all">
-      {/* 편집/삭제 버튼 (항상 노출하거나 상단에 배치) */}
+    <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 transition-all duration-300 hover:shadow-md">
+      {/* 편집/삭제 버튼 */}
       <div className="absolute top-6 right-6 flex gap-2">
         <button 
           onClick={(e) => { e.stopPropagation(); setEditingItem(item); }}
@@ -32,22 +33,35 @@ function RecipeItem({ item, searchQuery, highlightText, setEditingItem, setDelet
         </button>
       </div>
 
-      {/* 클릭 가능한 헤더 영역 */}
+      {/* 헤더 부분 */}
       <div className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
         <div className="mb-2">
           <span className="text-[10px] font-black px-2 py-1 bg-orange-50 text-orange-600 rounded-lg uppercase">
             {item.category || "미분류"}
           </span>
         </div>
-        <h2 className="text-2xl font-black text-slate-800 pr-12">
+        <h2 className="text-2xl font-black text-slate-800 pr-12 flex items-center gap-2">
           {highlightText(item.title, searchQuery)}
-          <span className="ml-2 text-sm text-slate-400">{isOpen ? "▲" : "▼"}</span>
+          {/* 화살표 애니메이션 */}
+          <svg 
+            xmlns="http://www.w3.org/2000/svg" 
+            width="20" height="20" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="3" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+            className={`text-slate-300 transition-transform duration-300 ${isOpen ? "rotate-180 text-orange-500" : ""}`}
+          >
+            <path d="m6 9 6 6 6-6"/>
+          </svg>
         </h2>
       </div>
 
-      {/* 펼쳐지는 상세 정보 영역 */}
-      {isOpen && (
-        <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+      {/* 아코디언 애니메이션 컨테이너 */}
+      <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? "grid-rows-[1fr] opacity-100 mt-4" : "grid-rows-[0fr] opacity-0"}`}>
+        <div className="overflow-hidden">
           <div className="bg-slate-50 p-4 rounded-2xl text-slate-700 font-medium leading-relaxed">
             {item.component?.split("-").map((line, index) => (
               <div key={index}>
@@ -69,7 +83,7 @@ function RecipeItem({ item, searchQuery, highlightText, setEditingItem, setDelet
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -194,6 +208,11 @@ const handleDeleteFinal = async () => {
   useEffect(() => {
     if (isLoggedIn) fetchRecipes();
   }, [isLoggedIn]);
+
+  useEffect(() => {
+  // 카테고리가 바뀔 때마다 윈도우 스크롤을 맨 위로!
+  window.scrollTo({ top: 0, behavior: "instant" });
+  }, [selectedCategory]);
 
   // --- 수정 로직 (1단계: 확인창 띄우기) ---
   const requestUpdate = (e) => {
