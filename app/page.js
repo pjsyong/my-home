@@ -7,7 +7,14 @@ import { AUTH_CONFIG } from "@/constants/auth";
 // 1. 수파베이스 연결 설정
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  {
+    auth: {
+      storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
+      persistSession: true, // 세션 유지 여부
+      autoRefreshToken: true,
+    }
+  }
 );
 
 function RecipeItem({ item, searchQuery, highlightText, setEditingItem, setDeletingItem }) {
