@@ -10,61 +10,69 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-
-// page.js 상단이나 별도 파일에 추가
 function RecipeItem({ item, searchQuery, highlightText, setEditingItem, setDeletingItem }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 transition-all duration-300 hover:shadow-md">
-      {/* 편집/삭제 버튼 */}
-      <div className="absolute top-6 right-6 flex gap-2">
+    // relative와 group 클래스를 추가하여 마우스 올렸을 때만 버튼이 더 잘 보이게 할 수도 있습니다.
+    <div className="relative bg-white rounded-3xl p-6 shadow-sm border border-slate-100 transition-all duration-300 hover:shadow-md">
+      
+      {/* 1. 편집/삭제 버튼: 제목과 겹치지 않도록 z-index를 50으로 올리고 위치를 재조정했습니다. */}
+      <div className="absolute top-4 right-4 flex gap-1 z-50">
         <button 
-          onClick={(e) => { e.stopPropagation(); setEditingItem(item); }}
-          className="px-3 py-1.5 bg-slate-100 text-slate-500 rounded-xl font-black text-xs hover:bg-orange-100 hover:text-orange-600 transition-colors"
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            setEditingItem(item); 
+          }}
+          className="px-3 py-1.5 bg-slate-100/80 backdrop-blur-sm text-slate-500 rounded-xl font-black text-[11px] hover:bg-orange-100 hover:text-orange-600 transition-all active:scale-90"
         >
           편집
         </button>
         <button 
-          onClick={(e) => { e.stopPropagation(); setDeletingItem(item); }}
-          className="px-3 py-1.5 bg-red-50 text-red-400 rounded-xl font-black text-xs hover:bg-red-100 hover:text-red-600 transition-colors"
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            setDeletingItem(item); 
+          }}
+          className="px-3 py-1.5 bg-red-50/80 backdrop-blur-sm text-red-400 rounded-xl font-black text-[11px] hover:bg-red-100 hover:text-red-600 transition-all active:scale-90"
         >
           삭제
         </button>
       </div>
 
-      {/* 헤더 부분 */}
+      {/* 2. 클릭 영역 (제목 및 카테고리) */}
       <div className="cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
         <div className="mb-2">
           <span className="text-[10px] font-black px-2 py-1 bg-orange-50 text-orange-600 rounded-lg uppercase">
             {item.category || "미분류"}
           </span>
         </div>
-        <h2 className="text-2xl font-black text-slate-800 pr-12 flex items-center gap-2">
+        
+        {/* 제목 우측에 pr-20을 주어 버튼 공간을 확보합니다. */}
+        <h2 className="text-xl font-black text-slate-800 pr-20 flex items-center gap-2 leading-tight">
           {highlightText(item.title, searchQuery)}
-          {/* 화살표 애니메이션 */}
+          {/* 펼치기 아이콘 */}
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
-            width="20" height="20" 
+            width="18" height="18" 
             viewBox="0 0 24 24" 
             fill="none" 
             stroke="currentColor" 
             strokeWidth="3" 
             strokeLinecap="round" 
             strokeLinejoin="round"
-            className={`text-slate-300 transition-transform duration-300 ${isOpen ? "rotate-180 text-orange-500" : ""}`}
+            className={`text-slate-300 transition-transform duration-300 shrink-0 ${isOpen ? "rotate-180 text-orange-500" : ""}`}
           >
             <path d="m6 9 6 6 6-6"/>
           </svg>
         </h2>
       </div>
 
-      {/* 아코디언 애니메이션 컨테이너 */}
+      {/* 3. 펼쳐지는 상세 내용 */}
       <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? "grid-rows-[1fr] opacity-100 mt-4" : "grid-rows-[0fr] opacity-0"}`}>
         <div className="overflow-hidden">
-          <div className="bg-slate-50 p-4 rounded-2xl text-slate-700 font-medium leading-relaxed">
+          <div className="bg-slate-50 p-4 rounded-2xl text-slate-700 font-medium leading-relaxed whitespace-pre-wrap">
             {item.component?.split("-").map((line, index) => (
-              <div key={index}>
+              <div key={index} className={index > 0 ? "mt-1" : ""}>
                 {index > 0 && line.trim() ? `- ${line.trim()}` : line}
               </div>
             ))}
@@ -73,7 +81,7 @@ function RecipeItem({ item, searchQuery, highlightText, setEditingItem, setDelet
           {item.feedback && (
             <div className="mt-4 flex gap-2 items-start bg-blue-50 p-3 rounded-xl border border-blue-100">
               <span className="text-blue-500">💡</span>
-              <div className="text-blue-700 text-sm font-bold leading-snug">
+              <div className="text-blue-700 text-sm font-bold leading-snug whitespace-pre-wrap">
                 {item.feedback.split("-").map((line, index) => (
                   <div key={index}>
                     {index > 0 && line.trim() ? `- ${line.trim()}` : line}
@@ -250,25 +258,43 @@ const handleDeleteFinal = async () => {
   };
 
   // 검색어 강조 함수
-  const highlightText = (text, query) => {
-    if (!query.trim()) return text;
-    
-    // 띄어쓰기 무관하게 검색하기 위해 정규식 생성
-    const cleanQuery = query.replace(/\s+/g, "");
-    const regex = new RegExp(`(${cleanQuery.split("").join("\\s*")})`, "gi");
-    
-    const parts = text.split(regex);
-    
-    return parts.map((part, i) => 
-      regex.test(part) ? (
-        <span key={i} className="bg-orange-100 text-orange-700 rounded-sm px-0.5">
-          {part}
-        </span>
-      ) : (
-        part
-      )
-    );
-  };
+// 검색어 강조 함수 (너비 변화 방지 버전)
+const highlightText = (text, query) => {
+  if (!query.trim()) return text;
+
+  // 띄어쓰기 무관 검색을 위한 정규식
+  const cleanQuery = query.replace(/\s+/g, "");
+  const regex = new RegExp(`(${cleanQuery.split("").join("\\s*")})`, "gi");
+  const parts = text.split(regex);
+
+  return (
+    // 전체를 span으로 감싸고 flex-wrap을 방지하여 글자가 쪼개지는 것을 최소화합니다.
+    <span className="inline-flex flex-wrap items-baseline">
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <span
+            key={i}
+            className="text-orange-600 font-black"
+            style={{
+              // 너비 변화 0, 줄바꿈 방지, 형광펜 효과
+              display: 'inline',
+              whiteSpace: 'nowrap',
+              backgroundImage: 'linear-gradient(to top, rgba(255, 237, 213, 1) 40%, transparent 40%)',
+              backgroundPosition: '0 0',
+              backgroundRepeat: 'no-repeat',
+            }}
+          >
+            {part}
+          </span>
+        ) : (
+          <span key={i} style={{ display: 'inline', whiteSpace: 'nowrap' }}>
+            {part}
+          </span>
+        )
+      )}
+    </span>
+  );
+};
 
   // --- 카테고리 추출 및 검색 필터링 ---
   const categories = useMemo(() => {
