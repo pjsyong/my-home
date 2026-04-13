@@ -104,6 +104,10 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("전체");
 
+  const ADMIN_EMAIL = 'mon_recipe@gmail.com';
+  const ADMIN_PW = 'pattern_1267111216_!';
+
+  
   // --- 편집 및 팝업 관련 상태 ---
   const [editingItem, setEditingItem] = useState(null);    // 편집 모달 제어
   const [isConfirmOpen, setIsConfirmOpen] = useState(false); // 커스텀 확인창 제어
@@ -184,20 +188,31 @@ const handleDeleteFinal = async () => {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   
   // --- 로그인 로직 ---
-  const handleLogin = (inputPattern) => {
-    if (inputPattern.join(",") === AUTH_CONFIG.MASTER_PATTERN) {
-      setLoginMessage("환영합니다!");
-      setMessageColor("text-orange-500");
-      setTimeout(() => setIsLoggedIn(true), 500);
-    } else {
-      // 패턴이 틀렸을 때
-      setLoginMessage("패턴이 틀렸습니다. 다시 시도해주세요.");
+  const handleLogin = async (inputPattern) => {
+    const patternStr = inputPattern.join(""); // 예: "1267111216"
+    const ADMIN_EMAIL = 'mon_recipe@gmail.com';
+    
+    // 패턴을 조합해서 실제 Supabase 계정 비밀번호와 매칭되게 만듭니다.
+    // 예: 계정 비밀번호를 "pattern_1267111216_!"로 설정했다면
+    const secretPassword = `pattern_${patternStr}_!`;
+
+    setLoginMessage("인증 중...");
+
+    // Supabase에 직접 로그인을 던집니다.
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: ADMIN_EMAIL,
+      password: secretPassword,
+    });
+
+    if (error) {
+      // 로그인이 실패하면 패턴이 틀린 것입니다.
+      setLoginMessage("패턴이 일치하지 않습니다.");
       setMessageColor("text-red-500");
-      
-      // 🚀 resetKey를 변경하여 PatternLock을 강제로 새로고침(초기화)
-      setTimeout(() => {
-        setResetKey(prev => prev + 1);
-      }, 300); // 0.3초 정도 패턴을 보여준 뒤 지워지게 설정
+      setTimeout(() => setResetKey(prev => prev + 1), 300);
+    } else {
+      // 로그인 성공 시에만 통과
+      setLoginMessage("환영합니다!");
+      setIsLoggedIn(true);
     }
   };
 
@@ -205,14 +220,31 @@ const handleDeleteFinal = async () => {
   // --- 데이터 불러오기 함수 ---
   const fetchRecipes = async () => {
     setLoading(true);
+    // RLS가 적용되어 있어도, 로그인이 완료된 상태이므로 데이터를 가져올 수 있습니다.
     const { data, error } = await supabase
       .from("food")
       .select("*")
       .order("title", { ascending: true });
-    if (!error) setRecipes(data);
+      
+    if (!error) {
+      setRecipes(data);
+    } else {
+      console.error("데이터 로드 실패:", error.message);
+      triggerToast("데이터를 불러오지 못했습니다. ❌");
+    }
     setLoading(false);
   };
 
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && user.email === ADMIN_EMAIL) {
+        setIsLoggedIn(true);
+      }
+    };
+    checkSession();
+  }, []);
+  
   useEffect(() => {
     if (isLoggedIn) fetchRecipes();
   }, [isLoggedIn]);
