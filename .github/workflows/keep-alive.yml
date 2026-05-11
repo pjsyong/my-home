@@ -1,0 +1,28 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    # 5일마다 새벽 0시에 실행 (한국 시간 오전 9시)
+    - cron: '0 0 */5 * *'
+  workflow_dispatch: # 수동 실행 버튼 활성화
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Supabase API Health Check
+        run: |
+          # 별도 테이블 지정 없이 API 루트에 요청을 보내 '활동' 로그를 남깁니다.
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+            '${{ secrets.SUPABASE_URL }}/rest/v1/' \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          
+          echo "Supabase 응답 코드: $STATUS"
+          
+          if [ "$STATUS" -eq 200 ]; then
+            echo "✅ 성공: Supabase가 활성 상태입니다."
+          else
+            echo "❌ 실패: 응답 코드를 확인하세요 ($STATUS)"
+            exit 1
+          fi
