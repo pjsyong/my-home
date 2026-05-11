@@ -21,11 +21,10 @@ function RecipeItem({ item, searchQuery, highlightText, setEditingItem, setDelet
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    // relative와 group 클래스를 추가하여 마우스 올렸을 때만 버튼이 더 잘 보이게 할 수도 있습니다.
     <div className="relative bg-white rounded-3xl p-6 shadow-sm border border-slate-100 transition-all duration-300 hover:shadow-md">
       
-      {/* 1. 편집/삭제 버튼: 제목과 겹치지 않도록 z-index를 50으로 올리고 위치를 재조정했습니다. */}
-      <div className="absolute top-4 right-4 flex gap-1 z-50">
+      {/* 수정 포인트: z-50 -> z-10 으로 변경 (헤더 아래로 숨기기 위함) */}
+      <div className="absolute top-4 right-4 flex gap-1 z-10">
         <button 
           onClick={(e) => { 
             e.stopPropagation(); 
@@ -357,7 +356,7 @@ const highlightText = (text, query) => {
         
         {/* 상단 검색 및 카테고리바 (고정) */}
         {/* 상단 검색 및 카테고리바 부분 수정 */}
-        <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200 p-4">
+        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 p-4">
           <div className="max-w-xl mx-auto space-y-4">
             <h1 className="text-xl font-black text-slate-800 text-center">미경이의 백과사전 🏠</h1>
             
