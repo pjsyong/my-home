@@ -13,7 +13,7 @@ jobs:
         run: |
           # 'profiles'나 'users' 등 실제 데이터가 있는 테이블 명 하나만 적어주세요.
           # 만약 테이블명을 모르겠다면 그대로 두셔도 됩니다.
-          TARGET_TABLE="your_table_name" 
+          TARGET_TABLE="food" 
           
           STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
             "${{ secrets.SUPABASE_URL }}/rest/v1/$TARGET_TABLE?select=*&limit=1" \
